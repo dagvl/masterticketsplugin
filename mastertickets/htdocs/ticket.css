@@ -1,0 +1,3 @@
+input#blockedby { display: none; }
+label[for=blockedby] { display: none; }
+img.blockedby_icon { width: 1em; }
