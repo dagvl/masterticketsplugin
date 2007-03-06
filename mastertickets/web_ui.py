@@ -52,7 +52,7 @@ class MasterTicketsModule(Component):
                 
             
             # Linkify the 'Blocks' field
-            blocks_ids = req.hdf.get('ticket.blocking')
+            blocks_ids = req.hdf.get('ticket.blocking') or ''
             blocks_ids = blocks_ids.replace('#', '')
             if blocks_ids:
                 blocks_ids = [x.strip() for x in blocks_ids.split(',')]
