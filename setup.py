@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name = 'TracMasterTickets',
-    version = '1.0',
+    version = '2.0',
     packages = ['mastertickets'],
     package_data = { 'mastertickets': ['htdocs/*.js', 'htdocs/*.css' ] },
 
@@ -19,11 +19,12 @@ setup(
         'Framework :: Trac',
     ],
     
-    install_requires = ['TracWebAdmin'],
+    install_requires = ['Trac'],
 
     entry_points = {
         'trac.plugins': [
             'mastertickets.web_ui = mastertickets.web_ui',
+            'mastertickets.api = mastertickets.api',
         ]
     }
 )
