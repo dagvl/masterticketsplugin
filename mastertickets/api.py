@@ -5,7 +5,7 @@ import re
 from trac.core import *
 from trac.env import IEnvironmentSetupParticipant
 from trac.db import DatabaseManager
-from trac.ticket.api import ITicketChangeListener
+from trac.ticket.api import ITicketChangeListener, ITicketManipulator
 
 import db_default
 from model import TicketLinks
@@ -13,7 +13,7 @@ from model import TicketLinks
 class MasterTicketsSystem(Component):
     """Central functionality for the MasterTickets plugin."""
 
-    implements(IEnvironmentSetupParticipant, ITicketChangeListener)
+    implements(IEnvironmentSetupParticipant, ITicketChangeListener, ITicketManipulator)
     
     NUMBERS_RE = re.compile(r'\d+', re.U)
     
@@ -107,3 +107,15 @@ class MasterTicketsSystem(Component):
 
     def ticket_deleted(self, tkt):
         pass
+        
+    # ITicketManipulator methods
+    def prepare_ticket(self, req, ticket, fields, actions):
+        pass
+
+    def validate_ticket(self, req, ticket):
+        for field in ('blocking', 'blockedby'):
+            try:
+                ticket[field] = ', '.join(sorted(self.NUMBERS_RE.findall(ticket[field] or ''), key=lambda x: int(x)))
+            except Exception, e:
+                self.log.debug('MasterTickets: Error parsing %s "%s": %s', field, ticket[field], e)
+                yield field, 'Not a valid list of ticket IDs'
