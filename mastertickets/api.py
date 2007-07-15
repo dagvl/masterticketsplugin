@@ -93,7 +93,7 @@ class MasterTicketsSystem(Component):
             
     # ITicketChangeListener methods
     def ticket_created(self, tkt):
-        pass
+        self.ticket_changed(tkt, '', tkt['reporter'], {})
 
     def ticket_changed(self, tkt, comment, author, old_values):
         db = self.env.get_db_cnx()
@@ -113,9 +113,18 @@ class MasterTicketsSystem(Component):
         pass
 
     def validate_ticket(self, req, ticket):
+        db = self.env.get_db_cnx()
+        cursor = db.cursor()
+        
         for field in ('blocking', 'blockedby'):
             try:
-                ticket[field] = ', '.join(sorted(self.NUMBERS_RE.findall(ticket[field] or ''), key=lambda x: int(x)))
+                ids = self.NUMBERS_RE.findall(ticket[field] or '')
+                for id in ids[:]:
+                    cursor.execute('SELECT id FROM ticket WHERE id=%s', (id,))
+                    row = cursor.fetchone()
+                    if row is None:
+                        ids.remove(id)
+                ticket[field] = ', '.join(sorted(ids, key=lambda x: int(x)))
             except Exception, e:
                 self.log.debug('MasterTickets: Error parsing %s "%s": %s', field, ticket[field], e)
                 yield field, 'Not a valid list of ticket IDs'
