@@ -6,6 +6,7 @@ from trac.core import *
 from trac.env import IEnvironmentSetupParticipant
 from trac.db import DatabaseManager
 from trac.ticket.api import ITicketChangeListener, ITicketManipulator
+from trac.util.compat import set
 
 import db_default
 from model import TicketLinks
@@ -106,7 +107,14 @@ class MasterTicketsSystem(Component):
         db.commit()
 
     def ticket_deleted(self, tkt):
-        pass
+        db = self.env.get_db_cnx()
+        
+        links = TicketLinks(self.env, tkt, db)
+        links.blocking = set()
+        links.blocked_by = set()
+        links.save('trac', 'Ticket #%s deleted'%tkt.id, when=None, db=db)
+        
+        db.commit()
         
     # ITicketManipulator methods
     def prepare_ticket(self, req, ticket, fields, actions):
