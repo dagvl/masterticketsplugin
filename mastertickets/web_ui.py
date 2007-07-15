@@ -16,12 +16,14 @@ class MasterTicketsModule(Component):
     
     implements(IRequestFilter, ITemplateStreamFilter, ITemplateProvider, ITicketManipulator)
     
+    FIELD_XPATH = 'div[@id="ticket"]/table[@class="properties"]/td[@headers="h_%s"]/text()'
+    
     # IRequestFilter methods
     def pre_process_request(self, req, handler):
         return handler
         
     def post_process_request(self, req, template, data, content_type):
-        if req.path_info.startswith('/ticket'):
+        if req.path_info.startswith('/ticket/'):
             tkt = data['ticket']
             
             data['field_types']['blocking'] = 'text'
@@ -44,7 +46,7 @@ class MasterTicketsModule(Component):
         
     # ITemplateStreamFilter methods
     def match_stream(self, req, method, filename, stream, data):
-        return req.path_info.startswith('/ticket')
+        return req.path_info.startswith('/ticket/')
 
     def filter_stream(self, req, method, filename, stream, data):
         return stream | Transformer('div[@id="ticket"]/table[@class="properties"]/td[@headers="h_blocking"]/text()').replace(data['mastertickets']['field_values']['blocking'])
@@ -58,7 +60,6 @@ class MasterTicketsModule(Component):
             for i in blocked_by(self.env, ticket):
                 if Ticket(self.env, i)['status'] != 'closed':
                     yield None, 'Ticket #%s is blocking this ticket'%i
-        
 
     # ITemplateProvider methods
     def get_htdocs_dirs(self):

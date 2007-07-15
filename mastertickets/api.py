@@ -1,16 +1,21 @@
 # Created by Noah Kantrowitz on 2007-07-04.
 # Copyright (c) 2007 Noah Kantrowitz. All rights reserved.
+import re
 
 from trac.core import *
 from trac.env import IEnvironmentSetupParticipant
 from trac.db import DatabaseManager
+from trac.ticket.api import ITicketChangeListener
 
 import db_default
+from model import TicketLinks
 
 class MasterTicketsSystem(Component):
     """Central functionality for the MasterTickets plugin."""
 
-    implements(IEnvironmentSetupParticipant)
+    implements(IEnvironmentSetupParticipant, ITicketChangeListener)
+    
+    NUMBERS_RE = re.compile(r'\d+', re.U)
     
     # IEnvironmentSetupParticipant methods
     def environment_created(self):
@@ -27,7 +32,15 @@ class MasterTicketsSystem(Component):
         else:
             self.found_db_version = int(value[0])
             #self.log.debug('WeatherWidgetSystem: Found db version %s, current is %s' % (self.found_db_version, db_default.version))
-            return self.found_db_version < db_default.version
+            if self.found_db_version < db_default.version:
+                return True
+                
+        # Check for our custom fields
+        if 'blocking' not in self.config['ticket-custom'] or 'blockedby' not in self.config['ticket-custom']:
+            return True
+            
+        # Fall through
+        return False
             
     def upgrade_environment(self, db):
         db_manager, _ = DatabaseManager(self.env)._get_connector()
@@ -64,3 +77,33 @@ class MasterTicketsSystem(Component):
                     except Exception, e:
                         if 'OperationalError' not in e.__class__.__name__:
                             raise e
+
+        custom = self.config['ticket-custom']
+        config_dirty = False
+        if 'blocking' not in custom:
+            custom.set('blocking', 'text')
+            custom.set('blocking.label', 'Blocking')
+            config_dirty = True
+        if 'blockedby' not in custom:
+            custom.set('blockedby', 'text')
+            custom.set('blockedby.label', 'Blocked By')
+            config_dirty = True
+        if config_dirty:
+            self.config.save()
+            
+    # ITicketChangeListener methods
+    def ticket_created(self, tkt):
+        pass
+
+    def ticket_changed(self, tkt, comment, author, old_values):
+        db = self.env.get_db_cnx()
+        
+        links = TicketLinks(self.env, tkt, db)
+        links.blocking = set(self.NUMBERS_RE.findall(tkt['blocking'] or ''))
+        links.blocked_by = set(self.NUMBERS_RE.findall(tkt['blockedby'] or ''))
+        links.save(author, tkt.time_changed, db)
+        
+        db.commit()
+
+    def ticket_deleted(self, tkt):
+        pass
