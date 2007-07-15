@@ -27,6 +27,11 @@ class MasterTicketsModule(Component):
         if req.path_info.startswith('/ticket/'):
             tkt = data['ticket']
             links = TicketLinks(self.env, tkt)
+            
+            for i in links.blocked_by:
+                if Ticket(self.env, i)['status'] != 'closed':
+                    add_script(req, 'mastertickets/disable_resolve.js')
+                    break
 
             data['mastertickets'] = {
                 'field_values': {
@@ -43,7 +48,7 @@ class MasterTicketsModule(Component):
 
     def filter_stream(self, req, method, filename, stream, data):
         for field, value in data['mastertickets']['field_values'].iteritems():
-            stream |= Transformer('div[@id="ticket"]/table[@class="properties"]/td[@headers="h_%s"]/text()'%field).replace(value)
+            stream |= Transformer(self.FIELD_XPATH % field).replace(value)
         return stream
         
     # ITicketManipulator methods
@@ -52,7 +57,8 @@ class MasterTicketsModule(Component):
         
     def validate_ticket(self, req, ticket):
         if req.args.get('action') == 'resolve':
-            for i in blocked_by(self.env, ticket):
+            links = TicketLinks(self.env, ticket)
+            for i in links.blocked_by:
                 if Ticket(self.env, i)['status'] != 'closed':
                     yield None, 'Ticket #%s is blocking this ticket'%i
 
