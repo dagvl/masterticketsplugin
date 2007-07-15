@@ -10,6 +10,7 @@ from genshi.builder import tag
 from genshi.filters.transform import Transformer 
 
 from util import *
+from model import TicketLinks
 
 class MasterTicketsModule(Component):
     """Provides support for ticket dependencies."""
@@ -25,20 +26,12 @@ class MasterTicketsModule(Component):
     def post_process_request(self, req, template, data, content_type):
         if req.path_info.startswith('/ticket/'):
             tkt = data['ticket']
-            
-            data['field_types']['blocking'] = 'text'
-            data['fields'].append({
-                'label': 'Blocking',
-                'name': 'blocking',
-                'optional': False,
-                'options': [],
-                'skip': False,
-                'type': 'text',
-            })
-            tkt['blocking'] = '1, 2'
+            links = TicketLinks(self.env, tkt)
+
             data['mastertickets'] = {
                 'field_values': {
-                    'blocking': tag.b('Foobar'),
+                    'blocking': linkify_ids(self.env, req, links.blocking),
+                    'blockedby': linkify_ids(self.env, req, links.blocked_by),
                 },
             }
             
@@ -49,7 +42,9 @@ class MasterTicketsModule(Component):
         return req.path_info.startswith('/ticket/')
 
     def filter_stream(self, req, method, filename, stream, data):
-        return stream | Transformer('div[@id="ticket"]/table[@class="properties"]/td[@headers="h_blocking"]/text()').replace(data['mastertickets']['field_values']['blocking'])
+        for field, value in data['mastertickets']['field_values'].iteritems():
+            stream |= Transformer('div[@id="ticket"]/table[@class="properties"]/td[@headers="h_%s"]/text()'%field).replace(value)
+        return stream
         
     # ITicketManipulator methods
     def prepare_ticket(self, req, ticket, fields, actions):

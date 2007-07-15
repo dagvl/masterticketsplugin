@@ -27,7 +27,7 @@ class TicketLinks(object):
         self.blocked_by = set([num for num, in cursor])
         self._old_blocked_by = copy.copy(self.blocked_by)
         
-    def save(self, author, when=None, db=None):
+    def save(self, author, comment='', when=None, db=None):
         """Save new links."""
         if when is None:
             when = datetime.now(utc)
@@ -54,7 +54,7 @@ class TicketLinks(object):
                     update_field = lambda lst: lst.append(str(self.tkt.id))
                 elif n not in new_ids and n in old_ids:
                     # Old ticket removed
-                    cursor.execute('DELETE FROM masterticket WHERE %s=%%s AND %s=%%s'%sourcedest, (self.tkt.id, n))
+                    cursor.execute('DELETE FROM mastertickets WHERE %s=%%s AND %s=%%s'%sourcedest, (self.tkt.id, n))
                     update_field = lambda lst: lst.remove(str(self.tkt.id))
                 
                 if update_field is not None:
@@ -67,6 +67,11 @@ class TicketLinks(object):
             
                     cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)', 
                                    (n, when_ts, author, field, old_value, new_value))
+                                   
+                    if comment:
+                        cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)', 
+                                       (n, when_ts, author, 'comment', '', '(In #%s) %s'%(self.tkt.id, comment)))
+                                   
                            
                     cursor.execute('UPDATE ticket_custom SET value=%s WHERE ticket=%s AND name=%s',
                                    (new_value, n, field))

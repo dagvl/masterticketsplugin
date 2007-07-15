@@ -101,7 +101,7 @@ class MasterTicketsSystem(Component):
         links = TicketLinks(self.env, tkt, db)
         links.blocking = set(self.NUMBERS_RE.findall(tkt['blocking'] or ''))
         links.blocked_by = set(self.NUMBERS_RE.findall(tkt['blockedby'] or ''))
-        links.save(author, tkt.time_changed, db)
+        links.save(author, comment, tkt.time_changed, db)
         
         db.commit()
 

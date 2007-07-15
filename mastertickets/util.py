@@ -1,6 +1,8 @@
 from trac.ticket.model import Ticket
 from trac.util.html import html, Markup
 
+from genshi.builder import tag
+
 __all__ = ['blocked_by', 'linkify_ids']
 
 def blocked_by(env, tkt):
@@ -16,4 +18,12 @@ def blocked_by(env, tkt):
     return blocking_ids
     
 def linkify_ids(env, req, ids):
-    return Markup(', '.join([unicode(html.A('#%s'%i, href=req.href.ticket(i), class_='%s ticket'%Ticket(env, i)['status'])) for i in ids]))
+    data = []
+    for id in sorted(ids, key=lambda x: int(x)):
+        tkt = Ticket(env, id)
+        data.append(tag.a('#%s'%tkt.id, href=req.href.ticket(tkt.id), class_='%s ticket'%tkt['status'], title=tkt['summary']))
+        data.append(', ')
+    if data:
+        del data[-1] # Remove the last comma if needed
+    return tag.span(*data)
+    #return Markup(', '.join([unicode(tag.a('#%s'%i, href=req.href.ticket(i), class_='%s ticket'%Ticket(env, i)['status'])) for i in ids]))
