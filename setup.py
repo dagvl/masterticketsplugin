@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name = 'TracMasterTickets',
-    version = '2.1',
+    version = '2.1.1',
     packages = ['mastertickets'],
     package_data = { 'mastertickets': ['htdocs/*.js', 'htdocs/*.css' ] },
 
@@ -19,7 +19,7 @@ setup(
         'Framework :: Trac',
     ],
     
-    install_requires = ['Trac'],
+    install_requires = ['Trac', 'Genshi >= 0.5.dev-r698,==dev'],
 
     entry_points = {
         'trac.plugins': [
