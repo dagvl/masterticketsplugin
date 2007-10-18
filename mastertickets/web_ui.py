@@ -43,12 +43,10 @@ class MasterTicketsModule(Component):
         return template, data, content_type
         
     # ITemplateStreamFilter methods
-    def match_stream(self, req, method, filename, stream, data):
-        return req.path_info.startswith('/ticket/')
-
     def filter_stream(self, req, method, filename, stream, data):
-        for field, value in data['mastertickets']['field_values'].iteritems():
-            stream |= Transformer(self.FIELD_XPATH % field).replace(value)
+	if req.path_info.startswith('/ticket/'):
+            for field, value in data['mastertickets']['field_values'].iteritems():
+                stream |= Transformer(self.FIELD_XPATH % field).replace(value)
         return stream
         
     # ITicketManipulator methods
