@@ -1,5 +1,5 @@
 from trac.ticket.model import Ticket
-from trac.context import ResourceNotFound
+from trac.resource import ResourceNotFound
 
 from genshi.builder import tag
 
