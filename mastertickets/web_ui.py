@@ -104,10 +104,16 @@ class MasterTicketsModule(Component):
                     return
                 memo.add(tkt)
                 
+                tkt = Ticket(self.env, tkt)
+                node = g[tkt.id]
+                node['label'] = '#%s'%tkt.id
+                node['style'] = 'filled'
+                node['fillcolor'] = tkt['status'] == 'closed' and 'red' or 'green'
+                
                 links = TicketLinks(self.env, tkt)
-                if tkt != tkt_id:
+                if tkt.id != tkt_id:
                     for n in links.blocking:
-                        g[tkt] > g[n]
+                        node > g[n]
                 
                 for n in next_fn(links):
                     visit(n, next_fn)
