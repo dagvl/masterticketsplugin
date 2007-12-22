@@ -12,7 +12,7 @@ class TicketLinks(object):
     
     def __init__(self, env, tkt, db=None):
         self.env = env
-        if isinstance(tkt, int):
+        if not isinstance(tkt, Ticket):
             tkt = Ticket(self.env, tkt)
         self.tkt = tkt
         
@@ -94,6 +94,9 @@ class TicketLinks(object):
         
         if handle_commit:
             db.commit()
+
+    def __nonzero__(self):
+        return bool(self.blocking) or bool(self.blocked_by)
             
     def __repr__(self):
         def l(arr):
@@ -105,4 +108,4 @@ class TicketLinks(object):
             return '[%s]'%','.join(arr2)
             
         return '<mastertickets.model.TicketLinks blocking=%s blocked_by=%s>'% \
-               (l(self.blocking), l(self.blocked_by))
+               (l(getattr(self, 'blocking', [])), l(getattr(self, 'blocked_by', [])))

@@ -1,21 +1,26 @@
+from pkg_resources import resource_filename
+from genshi.core import Markup
+from genshi.builder import tag
+from genshi.filters.transform import Transformer
+
 from trac.core import *
-from trac.web.api import IRequestFilter, ITemplateStreamFilter
-from trac.web.chrome import ITemplateProvider, add_stylesheet, add_script
+from trac.web.api import IRequestHandler, IRequestFilter, ITemplateStreamFilter
+from trac.web.chrome import ITemplateProvider, add_stylesheet, add_script, \
+                            add_ctxtnav
 from trac.ticket.api import ITicketManipulator
 from trac.ticket.model import Ticket
 from trac.util.html import html, Markup
+from trac.util.compat import set
 
-from genshi.core import Markup
-from genshi.builder import tag
-from genshi.filters.transform import Transformer 
-
+import graphviz
 from util import *
 from model import TicketLinks
 
 class MasterTicketsModule(Component):
     """Provides support for ticket dependencies."""
     
-    implements(IRequestFilter, ITemplateStreamFilter, ITemplateProvider, ITicketManipulator)
+    implements(IRequestHandler, IRequestFilter, ITemplateStreamFilter, 
+               ITemplateProvider, ITicketManipulator)
     
     FIELD_XPATH = 'div[@id="ticket"]/table[@class="properties"]/td[@headers="h_%s"]/text()'
     
@@ -40,11 +45,15 @@ class MasterTicketsModule(Component):
                 },
             }
             
+            # Add link to depgraph if needed
+            if links:
+                add_ctxtnav(req, 'Depgraph', req.href.depgraph(tkt.id))
+            
         return template, data, content_type
         
     # ITemplateStreamFilter methods
     def filter_stream(self, req, method, filename, stream, data):
-	if req.path_info.startswith('/ticket/'):
+        if 'mastertickets' in data:
             for field, value in data['mastertickets']['field_values'].iteritems():
                 stream |= Transformer(self.FIELD_XPATH % field).replace(value)
         return stream
@@ -65,14 +74,58 @@ class MasterTicketsModule(Component):
         """Return the absolute path of a directory containing additional
         static resources (such as images, style sheets, etc).
         """
-        from pkg_resources import resource_filename
         return [('mastertickets', resource_filename(__name__, 'htdocs'))]
 
     def get_templates_dirs(self):
         """Return the absolute path of the directory containing the provided
         ClearSilver templates.
         """
-        #from pkg_resources import resource_filename
-        #return [resource_filename(__name__, 'templates')]
-        return []
+        return [resource_filename(__name__, 'templates')]
 
+    # IRequestHandler methods
+    def match_request(self, req):
+        return req.path_info.startswith('/depgraph')
+
+    def process_request(self, req):
+        path_info = req.path_info[10:]
+        
+        if not path_info:
+            raise TracError('No ticket specified')
+        
+        tkt_id = path_info.split('/', 1)[0]
+        if '/' in path_info:
+            g = graphviz.Graph()
+            root = graphviz.Node(tkt_id)
+            g.add(root)
+            
+            memo = set()
+            def visit(tkt, next_fn):
+                if tkt in memo:
+                    return
+                memo.add(tkt)
+                
+                links = TicketLinks(self.env, tkt)
+                if tkt != tkt_id:
+                    for n in links.blocking:
+                        g[tkt] > g[n]
+                
+                for n in next_fn(links):
+                    visit(n, next_fn)
+            
+            links = TicketLinks(self.env, tkt_id)
+            for n in links.blocking:
+                g[tkt_id] > g[n]
+            visit(tkt_id, lambda links: links.blocking)
+            memo = set()
+            visit(tkt_id, lambda links: links.blocked_by)
+            
+            img = g.render('/opt/local/bin/dot')
+            req.send(img, 'image/png')
+        else:
+            data = {}
+            
+            tkt = Ticket(self.env, tkt_id)
+            data['tkt'] = tkt
+            
+            add_ctxtnav(req, 'Back to Ticket #%s'%tkt.id, req.href.ticket(tkt_id))
+            return 'depgraph.html', data, None
