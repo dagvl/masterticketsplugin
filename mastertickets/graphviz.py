@@ -12,20 +12,7 @@ except NameError:
     from sets import Set as set
 
 def _format_options(base_string, options):
-    acc = [base_string, ' [']
-    for key, val in options.iteritems():
-        acc.append(key)
-        acc.append('=')
-        acc.append(isinstance(val, HTMLString) and '<' or '"')
-        acc.append(val)
-        acc.append(isinstance(val, HTMLString) and '>' or '"')
-    acc.append(']')
-    return ''.join(acc)
-    #return '%s [%s]'%(base_string, ', '.join(['%s="%s"'%x for x in options.iteritems()]))
-
-class HTMLString(unicode):
-    """An HTMLString fro dot."""
-
+    return '%s [%s]'%(base_string, ', '.join(['%s="%s"'%x for x in options.iteritems()]))
 
 class Edge(dict):
     """Model for an edge in a dot graph."""
@@ -136,7 +123,7 @@ class Graph(object):
         lines.append('}')
         return '\n'.join(lines)
 
-    def render(self, dot_path, format='png'):
+    def render(self, dot_path='dot', format='png'):
         """Render a dot graph."""
         proc = subprocess.Popen([dot_path, '-T%s'%format], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         out, _ = proc.communicate(str(self))
@@ -151,4 +138,4 @@ if __name__ == '__main__':
     
     g.add(root)
     
-    print g.render('/opt/local/bin/dot')
+    print g.render('dot')

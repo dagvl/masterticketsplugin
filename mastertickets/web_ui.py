@@ -9,6 +9,7 @@ from trac.web.chrome import ITemplateProvider, add_stylesheet, add_script, \
                             add_ctxtnav
 from trac.ticket.api import ITicketManipulator
 from trac.ticket.model import Ticket
+from trac.config import Option
 from trac.util.html import html, Markup
 from trac.util.compat import set
 
@@ -21,6 +22,9 @@ class MasterTicketsModule(Component):
     
     implements(IRequestHandler, IRequestFilter, ITemplateStreamFilter, 
                ITemplateProvider, ITicketManipulator)
+    
+    dot_path = Option('mastertickets', 'dot_path', default='dot',
+                      doc='Path to the dot executable.')
     
     FIELD_XPATH = 'div[@id="ticket"]/table[@class="properties"]/td[@headers="h_%s"]/text()'
     
@@ -125,7 +129,10 @@ class MasterTicketsModule(Component):
             memo = set()
             visit(tkt_id, lambda links: links.blocked_by)
             
-            img = g.render('/opt/local/bin/dot')
+            #root[]
+            
+            
+            img = g.render(self.dot_path)
             req.send(img, 'image/png')
         else:
             data = {}

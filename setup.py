@@ -7,7 +7,7 @@ setup(
     name = 'TracMasterTickets',
     version = '2.1.1',
     packages = ['mastertickets'],
-    package_data = { 'mastertickets': ['htdocs/*.js', 'htdocs/*.css' ] },
+    package_data = { 'mastertickets': ['templates/*.html', 'htdocs/*.js', 'htdocs/*.css' ] },
 
     author = "Noah Kantrowitz",
     author_email = "coderanger@yahoo.com",
