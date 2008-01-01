@@ -11,7 +11,7 @@ from trac.ticket.api import ITicketManipulator
 from trac.ticket.model import Ticket
 from trac.config import Option
 from trac.util.html import html, Markup
-from trac.util.compat import set
+from trac.util.compat import set, sorted
 
 import graphviz
 from util import *
@@ -97,40 +97,42 @@ class MasterTicketsModule(Component):
             raise TracError('No ticket specified')
         
         tkt_id = path_info.split('/', 1)[0]
-        if '/' in path_info:
-            g = graphviz.Graph()
-            root = graphviz.Node(tkt_id)
-            g.add(root)
+        if '/' in path_info or 'format' in req.args:
+            memo = {}
             
-            memo = set()
             def visit(tkt, next_fn):
                 if tkt in memo:
-                    return
-                memo.add(tkt)
-                
-                tkt = Ticket(self.env, tkt)
-                node = g[tkt.id]
-                node['label'] = '#%s'%tkt.id
-                node['style'] = 'filled'
-                node['fillcolor'] = tkt['status'] == 'closed' and 'red' or 'green'
+                    return False
                 
                 links = TicketLinks(self.env, tkt)
-                if tkt.id != tkt_id:
-                    for n in links.blocking:
-                        node > g[n]
+                memo[tkt] = links
                 
                 for n in next_fn(links):
                     visit(n, next_fn)
             
             links = TicketLinks(self.env, tkt_id)
-            for n in links.blocking:
-                g[tkt_id] > g[n]
             visit(tkt_id, lambda links: links.blocking)
-            memo = set()
+            del memo[tkt_id]
             visit(tkt_id, lambda links: links.blocked_by)
             
-            #root[]
+            g = graphviz.Graph()
+            root = graphviz.Node(tkt_id)
+            g.add(root)
             
+            links = sorted(memo.itervalues(), key=lambda link: link.tkt.id)
+            for links in links:
+                tkt = links.tkt
+                node = g[tkt.id]
+                node['label'] = '#%s'%tkt.id
+                node['style'] = 'filled'
+                node['fillcolor'] = tkt['status'] == 'closed' and 'red' or 'green'
+                
+                for n in links.blocking:
+                    if n in memo:
+                        node > g[n]
+            
+            if req.args.get('format') == 'text':
+                req.send(str(g), 'text/plain')
             
             img = g.render(self.dot_path)
             req.send(img, 'image/png')

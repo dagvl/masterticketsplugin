@@ -19,11 +19,11 @@ class TicketLinks(object):
         db = db or self.env.get_db_cnx()
         cursor = db.cursor()
         
-        cursor.execute('SELECT dest FROM mastertickets WHERE source=%s', (self.tkt.id,))
+        cursor.execute('SELECT dest FROM mastertickets WHERE source=%s ORDER BY dest', (self.tkt.id,))
         self.blocking = set([num for num, in cursor])
         self._old_blocking = copy.copy(self.blocking)
         
-        cursor.execute('SELECT source FROM mastertickets WHERE dest=%s', (self.tkt.id,))
+        cursor.execute('SELECT source FROM mastertickets WHERE dest=%s ORDER BY source', (self.tkt.id,))
         self.blocked_by = set([num for num, in cursor])
         self._old_blocked_by = copy.copy(self.blocked_by)
         

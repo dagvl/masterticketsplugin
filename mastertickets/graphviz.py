@@ -37,7 +37,7 @@ class Node(dict):
 
     def __init__(self, name, **kwargs):
         self.name = str(name)
-        self.edges = set()
+        self.edges = []
         dict.__init__(self, **kwargs)
         self['label'] = str(name)
 
@@ -50,14 +50,14 @@ class Node(dict):
     def __gt__(self, other):
         """Allow node1 > node2 to add an edge."""
         edge = Edge(self, other)
-        self.edges.add(edge)
-        other.edges.add(edge)
+        self.edges.append(edge)
+        other.edges.append(edge)
         return edge
 
     def __lt__(self, other):
         edge = Edge(other, self)
-        self.edges.add(edge)
-        other.edges.add(edge)
+        self.edges.append(edge)
+        other.edges.append(edge)
         return edge
 
     def __hash__(self):
@@ -70,32 +70,33 @@ class Graph(object):
     def __init__(self, name='graph'):
         super(Graph,self).__init__()
         self.name = name
-        self.nodes = {}
-        self.edges = set()
+        self.nodes = []
+        self._node_map = {}
+        self.edges = []
 
     def add(self, obj):
         if isinstance(obj, Node):
-            self.nodes[obj.name] = obj
+            self.nodes.append(obj)
+            self._node_map[obj.name] = obj
         elif isinstance(obj, Edge):
-            self.edges.add(obj)
+            self.edges.append(obj)
 
     def __getitem__(self, key):
         key = str(key)
-        if key not in self.nodes:
-            self.nodes[key] = Node(key)
-        return self.nodes[key]
-
-    def __setitem__(self, key, val):
-        key = str(key)
-        self.nodes[key] = val
+        if key not in self._node_map:
+            new_node = Node(key)
+            self._node_map[key] = Node(key)
+            self.nodes.append(new_node)
+        return self._node_map[key]
 
     def __delitem__(self, key):
         key = str(key)
-        del self.nodes[key]
+        node = self._node_map.pop(key)
+        self.nodes.remove(node)
 
     def __str__(self):
-        edges = set()
-        nodes = set()
+        edges = []
+        nodes = []
         
         memo = set()
         def process(lst):
@@ -105,16 +106,16 @@ class Graph(object):
                 memo.add(obj)
                 
                 if isinstance(obj, Node):
-                    nodes.add(obj)
+                    nodes.append(obj)
                     process(obj.edges)
                 elif isinstance(obj, Edge):
-                    edges.add(obj)
+                    edges.append(obj)
                     if isinstance(obj.source, Node):
                         process((obj.source,))
                     if isinstance(obj.dest, Node):
                         process((obj.dest,))
         
-        process(self.nodes.itervalues())
+        process(self.nodes)
         process(self.edges)
         
         lines = ['digraph "%s" {'%self.name]
@@ -138,4 +139,4 @@ if __name__ == '__main__':
     
     g.add(root)
     
-    print g.render('dot')
+    print g.render()

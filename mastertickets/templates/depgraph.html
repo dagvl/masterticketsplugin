@@ -14,8 +14,10 @@
     <title>Dependency Graph #$tkt.id</title>
   </head>
   <body>
-    <h1>Dependency Graph for Ticket #$tkt.id</h1>
-    <img src="${href.depgraph(tkt.id, 'depgraph.png')}"
-         alt="Dependency graph" />
+    <div id="content">
+      <h1>Dependency Graph for Ticket #$tkt.id</h1>
+      <img src="${href.depgraph(tkt.id, 'depgraph.png')}"
+           alt="Dependency graph" />
+    </div>
   </body>
 </html>
