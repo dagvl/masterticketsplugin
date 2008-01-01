@@ -39,7 +39,6 @@ class Node(dict):
         self.name = str(name)
         self.edges = []
         dict.__init__(self, **kwargs)
-        self['label'] = str(name)
 
     def __str__(self):
         ret = self.name
@@ -85,7 +84,7 @@ class Graph(object):
         key = str(key)
         if key not in self._node_map:
             new_node = Node(key)
-            self._node_map[key] = Node(key)
+            self._node_map[key] = new_node
             self.nodes.append(new_node)
         return self._node_map[key]
 

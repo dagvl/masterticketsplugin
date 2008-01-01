@@ -98,41 +98,33 @@ class MasterTicketsModule(Component):
         
         tkt_id = path_info.split('/', 1)[0]
         if '/' in path_info or 'format' in req.args:
-            memo = {}
-            
-            def visit(tkt, next_fn):
-                if tkt in memo:
-                    return False
-                
-                links = TicketLinks(self.env, tkt)
-                memo[tkt] = links
-                
-                for n in next_fn(links):
-                    visit(n, next_fn)
-            
             links = TicketLinks(self.env, tkt_id)
-            visit(tkt_id, lambda links: links.blocking)
-            del memo[tkt_id]
-            visit(tkt_id, lambda links: links.blocked_by)
             
             g = graphviz.Graph()
-            root = graphviz.Node(tkt_id)
-            g.add(root)
+            g[tkt_id] # Force this to the top of the graph
             
-            links = sorted(memo.itervalues(), key=lambda link: link.tkt.id)
-            for links in links:
-                tkt = links.tkt
+            links = sorted(links.walk(), key=lambda link: link.tkt.id)
+            for link in links:
+                tkt = link.tkt
                 node = g[tkt.id]
                 node['label'] = '#%s'%tkt.id
                 node['style'] = 'filled'
-                node['fillcolor'] = tkt['status'] == 'closed' and 'red' or 'green'
+                node['fillcolor'] = tkt['status'] == 'closed' and 'green' or 'red'
+                node['URL'] = req.href.ticket(tkt.id)
+                node['alt'] = 'Ticket #%s'%tkt.id
+                node['tooltip'] = tkt['summary']
                 
-                for n in links.blocking:
-                    if n in memo:
-                        node > g[n]
+                for n in link.blocking:
+                    node > g[n]
             
-            if req.args.get('format') == 'text':
+            format = req.args.get('format')
+            if format == 'text':
                 req.send(str(g), 'text/plain')
+            elif format == 'cmap':
+                req.send(g.render(self.dot_path, 'cmap'), 'text/plain')
+            elif format == 'debug':
+                import pprint
+                req.send(pprint.pformat(links), 'text/plain')
             
             img = g.render(self.dot_path)
             req.send(img, 'image/png')
