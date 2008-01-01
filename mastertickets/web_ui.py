@@ -97,25 +97,8 @@ class MasterTicketsModule(Component):
             raise TracError('No ticket specified')
         
         tkt_id = path_info.split('/', 1)[0]
+        g = self._build_graph(req, tkt_id)
         if '/' in path_info or 'format' in req.args:
-            links = TicketLinks(self.env, tkt_id)
-            
-            g = graphviz.Graph()
-            g[tkt_id] # Force this to the top of the graph
-            
-            links = sorted(links.walk(), key=lambda link: link.tkt.id)
-            for link in links:
-                tkt = link.tkt
-                node = g[tkt.id]
-                node['label'] = '#%s'%tkt.id
-                node['style'] = 'filled'
-                node['fillcolor'] = tkt['status'] == 'closed' and 'green' or 'red'
-                node['URL'] = req.href.ticket(tkt.id)
-                node['alt'] = 'Ticket #%s'%tkt.id
-                node['tooltip'] = tkt['summary']
-                
-                for n in link.blocking:
-                    node > g[n]
             
             format = req.args.get('format')
             if format == 'text':
@@ -133,6 +116,29 @@ class MasterTicketsModule(Component):
             
             tkt = Ticket(self.env, tkt_id)
             data['tkt'] = tkt
+            data['map'] = Markup(g.render(self.dot_path, 'cmapx'))
             
             add_ctxtnav(req, 'Back to Ticket #%s'%tkt.id, req.href.ticket(tkt_id))
             return 'depgraph.html', data, None
+
+    def _build_graph(self, req, tkt_id):
+        links = TicketLinks(self.env, tkt_id)
+        
+        g = graphviz.Graph()
+        g[tkt_id] # Force this to the top of the graph
+        
+        links = sorted(links.walk(), key=lambda link: link.tkt.id)
+        for link in links:
+            tkt = link.tkt
+            node = g[tkt.id]
+            node['label'] = '#%s'%tkt.id
+            node['style'] = 'filled'
+            node['fillcolor'] = tkt['status'] == 'closed' and 'green' or 'red'
+            node['URL'] = req.href.ticket(tkt.id)
+            node['alt'] = 'Ticket #%s'%tkt.id
+            node['tooltip'] = tkt['summary']
+            
+            for n in link.blocking:
+                node > g[n]
+        
+        return g
