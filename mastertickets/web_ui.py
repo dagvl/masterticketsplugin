@@ -1,3 +1,5 @@
+import subprocess
+
 from pkg_resources import resource_filename
 from genshi.core import Markup
 from genshi.builder import tag
@@ -9,9 +11,9 @@ from trac.web.chrome import ITemplateProvider, add_stylesheet, add_script, \
                             add_ctxtnav
 from trac.ticket.api import ITicketManipulator
 from trac.ticket.model import Ticket
-from trac.config import Option
+from trac.config import Option, BoolOption
 from trac.util.html import html, Markup
-from trac.util.compat import set, sorted
+from trac.util.compat import set, sorted, partial
 
 import graphviz
 from util import *
@@ -25,6 +27,10 @@ class MasterTicketsModule(Component):
     
     dot_path = Option('mastertickets', 'dot_path', default='dot',
                       doc='Path to the dot executable.')
+    gs_path = Option('mastertickets', 'gs_path', default='gs',
+                     doc='Path to the ghostscript executable.')
+    use_gs = BoolOption('mastertickets', 'use_gs', default=True,
+                        doc='If enabled, use ghostscript to produce nicer output.')
     
     FIELD_XPATH = 'div[@id="ticket"]/table[@class="properties"]/td[@headers="h_%s"]/text()'
     
@@ -103,20 +109,30 @@ class MasterTicketsModule(Component):
             format = req.args.get('format')
             if format == 'text':
                 req.send(str(g), 'text/plain')
-            elif format == 'cmap':
-                req.send(g.render(self.dot_path, 'cmap'), 'text/plain')
             elif format == 'debug':
                 import pprint
                 req.send(pprint.pformat(links), 'text/plain')
+            elif format is not None:
+                req.send(g.render(self.dot_path, format), 'text/plain')
             
-            img = g.render(self.dot_path)
+            if self.use_gs:
+                ps = g.render(self.dot_path, 'ps2')
+                gs = subprocess.Popen([self.gs_path, '-q', '-dTextAlphaBits=4', '-dGraphicsAlphaBits=4', '-sDEVICE=png16m', '-o', '%stdout%', '-'], 
+                                      stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                img, err = gs.communicate(ps)
+                if err:
+                    self.log.debug('MasterTickets: Error from gs: %s', err)
+            else:
+                img = g.render(self.dot_path)
             req.send(img, 'image/png')
         else:
             data = {}
             
             tkt = Ticket(self.env, tkt_id)
             data['tkt'] = tkt
-            data['map'] = Markup(g.render(self.dot_path, 'cmapx'))
+            data['graph'] = g
+            data['graph_render'] = partial(g.render, self.dot_path)
+            data['use_gs'] = self.use_gs
             
             add_ctxtnav(req, 'Back to Ticket #%s'%tkt.id, req.href.ticket(tkt_id))
             return 'depgraph.html', data, None
@@ -125,14 +141,21 @@ class MasterTicketsModule(Component):
         links = TicketLinks(self.env, tkt_id)
         
         g = graphviz.Graph()
-        g[tkt_id] # Force this to the top of the graph
+        
+        node_default = g['node']
+        node_default['style'] = 'filled'
+        
+        edge_default = g['edge']
+        edge_default['style'] = ''
+        
+        # Force this to the top of the graph
+        g[tkt_id] 
         
         links = sorted(links.walk(), key=lambda link: link.tkt.id)
         for link in links:
             tkt = link.tkt
             node = g[tkt.id]
             node['label'] = '#%s'%tkt.id
-            node['style'] = 'filled'
             node['fillcolor'] = tkt['status'] == 'closed' and 'green' or 'red'
             node['URL'] = req.href.ticket(tkt.id)
             node['alt'] = 'Ticket #%s'%tkt.id

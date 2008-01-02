@@ -17,8 +17,10 @@
     <div id="content">
       <h1>Dependency Graph for Ticket #$tkt.id</h1>
       <img src="${href.depgraph(tkt.id, 'depgraph.png')}"
-           alt="Dependency graph" usemap="#graph" />
-      ${map}
+           alt="Dependency graph" usemap="${(not use_gs) and '#graph' or None}" />
+      <py:if test="not use_gs">
+        ${Markup(graph_render('cmapx'))}
+      </py:if>
     </div>
   </body>
 </html>
