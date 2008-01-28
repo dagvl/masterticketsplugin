@@ -29,7 +29,7 @@ class MasterTicketsModule(Component):
                       doc='Path to the dot executable.')
     gs_path = Option('mastertickets', 'gs_path', default='gs',
                      doc='Path to the ghostscript executable.')
-    use_gs = BoolOption('mastertickets', 'use_gs', default=True,
+    use_gs = BoolOption('mastertickets', 'use_gs', default=False,
                         doc='If enabled, use ghostscript to produce nicer output.')
     
     FIELD_XPATH = 'div[@id="ticket"]/table[@class="properties"]/td[@headers="h_%s"]/text()'
