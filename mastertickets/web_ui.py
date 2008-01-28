@@ -159,7 +159,7 @@ class MasterTicketsModule(Component):
             node['fillcolor'] = tkt['status'] == 'closed' and 'green' or 'red'
             node['URL'] = req.href.ticket(tkt.id)
             node['alt'] = 'Ticket #%s'%tkt.id
-            node['tooltip'] = tkt['summary']
+            node['tooltip'] = tkt['summary'].encode('utf8')
             
             for n in link.blocking:
                 node > g[n]
