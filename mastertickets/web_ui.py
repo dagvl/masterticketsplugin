@@ -111,7 +111,7 @@ class MasterTicketsModule(Component):
                 req.send(str(g), 'text/plain')
             elif format == 'debug':
                 import pprint
-                req.send(pprint.pformat(links), 'text/plain')
+                req.send(pprint.pformat(TicketLinks(self.env, tkt_id)), 'text/plain')
             elif format is not None:
                 req.send(g.render(self.dot_path, format), 'text/plain')
             
