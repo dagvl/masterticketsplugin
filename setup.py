@@ -10,7 +10,7 @@ setup(
     package_data = { 'mastertickets': ['templates/*.html', 'htdocs/*.js', 'htdocs/*.css' ] },
 
     author = "Noah Kantrowitz",
-    author_email = "coderanger@yahoo.com",
+    author_email = "noah@coderanger.net",
     description = "Provides support for ticket dependencies and master tickets.",
     license = "BSD",
     keywords = "trac plugin ticket dependencies master",
