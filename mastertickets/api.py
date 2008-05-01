@@ -6,7 +6,7 @@ from trac.core import *
 from trac.env import IEnvironmentSetupParticipant
 from trac.db import DatabaseManager
 from trac.ticket.api import ITicketChangeListener, ITicketManipulator
-from trac.util.compat import set
+from trac.util.compat import set, sorted
 
 import db_default
 from model import TicketLinks
