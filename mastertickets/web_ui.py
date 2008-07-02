@@ -155,11 +155,11 @@ class MasterTicketsModule(Component):
         for link in links:
             tkt = link.tkt
             node = g[tkt.id]
-            node['label'] = '#%s'%tkt.id
+            node['label'] = u'#%s'%tkt.id
             node['fillcolor'] = tkt['status'] == 'closed' and 'green' or 'red'
             node['URL'] = req.href.ticket(tkt.id)
-            node['alt'] = 'Ticket #%s'%tkt.id
-            node['tooltip'] = tkt['summary'].encode('utf8')
+            node['alt'] = u'Ticket #%s'%tkt.id
+            node['tooltip'] = tkt['summary']
             
             for n in link.blocking:
                 node > g[n]
