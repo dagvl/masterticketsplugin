@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Created by Noah Kantrowitz on 2007-12-21.
 # Copyright (c) 2007 Noah Kantrowitz. All rights reserved.
 import os
@@ -12,7 +13,7 @@ except NameError:
     from sets import Set as set
 
 def _format_options(base_string, options):
-    return '%s [%s]'%(base_string, ', '.join(['%s="%s"'%x for x in options.iteritems()]))
+    return u'%s [%s]'%(base_string, u', '.join([u'%s="%s"'%x for x in options.iteritems()]))
 
 class Edge(dict):
     """Model for an edge in a dot graph."""
@@ -23,7 +24,7 @@ class Edge(dict):
         dict.__init__(self, **kwargs)
 
     def __str__(self):
-        ret = '%s -> %s'%(self.source.name, self.dest.name)
+        ret = u'%s -> %s'%(self.source.name, self.dest.name)
         if self:
             ret = _format_options(ret, self)
         return ret
@@ -36,7 +37,7 @@ class Node(dict):
     """Model for a node in a dot graph."""
 
     def __init__(self, name, **kwargs):
-        self.name = str(name)
+        self.name = unicode(name)
         self.edges = []
         dict.__init__(self, **kwargs)
 
@@ -66,7 +67,7 @@ class Node(dict):
 class Graph(object):
     """A model object for a graphviz digraph."""
 
-    def __init__(self, name='graph'):
+    def __init__(self, name=u'graph'):
         super(Graph,self).__init__()
         self.name = name
         self.nodes = []
@@ -81,7 +82,7 @@ class Graph(object):
             self.edges.append(obj)
 
     def __getitem__(self, key):
-        key = str(key)
+        key = unicode(key)
         if key not in self._node_map:
             new_node = Node(key)
             self._node_map[key] = new_node
@@ -89,7 +90,7 @@ class Graph(object):
         return self._node_map[key]
 
     def __delitem__(self, key):
-        key = str(key)
+        key = unicode(key)
         node = self._node_map.pop(key)
         self.nodes.remove(node)
 
@@ -126,7 +127,7 @@ class Graph(object):
     def render(self, dot_path='dot', format='png'):
         """Render a dot graph."""
         proc = subprocess.Popen([dot_path, '-T%s'%format], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        out, _ = proc.communicate(str(self))
+        out, _ = proc.communicate(unicode(self).encode('utf8'))
         return out
 
 
@@ -134,7 +135,7 @@ if __name__ == '__main__':
     g = Graph()
     root = Node('me')
     root > Node('them')
-    root < Node('us')
+    root < Node(u'Üs')
     
     g.add(root)
     
