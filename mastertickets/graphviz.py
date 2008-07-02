@@ -118,11 +118,11 @@ class Graph(object):
         process(self.nodes)
         process(self.edges)
         
-        lines = ['digraph "%s" {'%self.name]
+        lines = [u'digraph "%s" {'%self.name]
         for obj in itertools.chain(nodes, edges):
-            lines.append('\t%s;'%obj)
-        lines.append('}')
-        return '\n'.join(lines)
+            lines.append(u'\t%s;'%obj)
+        lines.append(u'}')
+        return u'\n'.join(lines)
 
     def render(self, dot_path='dot', format='png'):
         """Render a dot graph."""
