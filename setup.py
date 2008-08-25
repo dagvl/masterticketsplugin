@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name = 'TracMasterTickets',
-    version = '2.1.2',
+    version = '2.1.3',
     packages = ['mastertickets'],
     package_data = { 'mastertickets': ['templates/*.html', 'htdocs/*.js', 'htdocs/*.css' ] },
 
