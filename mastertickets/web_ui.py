@@ -60,6 +60,34 @@ class MasterTicketsModule(Component):
             if links:
                 add_ctxtnav(req, 'Depgraph', req.href.depgraph(tkt.id))
             
+            for change in data.get('changes', []):
+                for field, field_data in change['fields'].iteritems():
+                    if field in self.fields:
+                        if field_data['new'].strip():
+                            new = set([int(n) for n in field_data['new'].split(',')])
+                        else:
+                            new = set()
+                        if field_data['old'].strip():
+                            old = set([int(n) for n in field_data['old'].split(',')])
+                        else:
+                            old = set()
+                        add = new - old
+                        sub = old - new
+                        elms = tag()
+                        if add:
+                            elms.append(
+                                tag.em(u', '.join([unicode(n) for n in sorted(add)]))
+                            )
+                            elms.append(u' added')
+                        if add and sub:
+                            elms.append(u'; ')
+                        if sub:
+                            elms.append(
+                                tag.em(u', '.join([unicode(n) for n in sorted(sub)]))
+                            )
+                            elms.append(u' removed')
+                        field_data['rendered'] = elms
+            
         return template, data, content_type
         
     # ITemplateStreamFilter methods
@@ -67,9 +95,6 @@ class MasterTicketsModule(Component):
         if 'mastertickets' in data:
             for field, value in data['mastertickets']['field_values'].iteritems():
                 stream |= Transformer(self.FIELD_XPATH % field).replace(value)
-        if req.path_info.startswith('/ticket'):
-            pass
-            #stream |= Transformer('//ul[@class="changes"]/li').apply(self._change_filter())
         return stream
         
     # ITicketManipulator methods
@@ -169,63 +194,4 @@ class MasterTicketsModule(Component):
                 node > g[n]
         
         return g
-    
-    def _change_filter(self):
-        flag = [0]
-        name = []
-        buf = []
-        def _inner(stream):
-            for mark, (kind, data, pos) in stream:
-                if mark:
-                    if flag[0] == 0 and kind is START and data[0].localname == 'strong':
-                        flag[0] = 1
-                    elif flag[0] == 1 and kind is TEXT:
-                        if data.strip() in self.fields:
-                            name.append(data.strip())
-                            flag[0] = 2
-                        else:
-                            flag[0] = 0
-                    elif flag[0] == 2 and kind is START and data[0].localname == 'em':
-                        flag[0] = 3
-                    elif flag[0] == 3 and kind is TEXT:
-                        buf.append(data)
-                        if len(data) >= 2:
-                            flag[0] = 4
-                        else:
-                            flag[0] = 2
-                    elif kind is END and data.localname == 'li':
-                        flag[0] = 5
-                    
-                    if flag[0] == 0:
-                        yield True, (kind, data, pos)
-                    elif flag[0] == 5:
-                        if len(buf) == 0:
-                            add, sub = None, True
-                        elif len(buf) == 1:
-                            add, sub = buf[0], False
-                        else:
-                            add, sub = diff_lists(*buf)
-                        del buf[:]
-                        elms = tag(tag.strong(name[0]))
-                        
-                        if add and not sub:
-                            elms.append()
-                        elif add:
-                            elms.append(
-                                tag.em(u', '.join([unicode(n) for n in sorted(add)]))
-                            )
-                            elms.append(u' added')
-                        if add and sub:
-                            elms.append(u'; ')
-                        if sub:
-                            elms.append(
-                                tag.em(u', '.join([unicode(n) for n in sorted(sub)]))
-                            )
-                            elms.append(u' removed')
-                        for x in elms.generate():
-                            yield True, x
-                        yield True, (kind, data, pos)
-                        
-                else:
-                    yield False, (kind, data, pos)
-        return _inner
+

@@ -16,11 +16,3 @@ def linkify_ids(env, req, ids):
         del data[-1] # Remove the last comma if needed
     return tag.span(*data)
 
-def diff_lists(a, b):
-    """Return two sets containing the numbers added and removed between the
-    two lists.
-    """
-    a = set([int(n) for n in a])
-    b = set([int(n) for n in b])
-    return a - b, b - a
-
