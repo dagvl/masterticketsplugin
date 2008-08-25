@@ -1,6 +1,6 @@
 from trac.ticket.model import Ticket
 from trac.resource import ResourceNotFound
-
+from trac.util.compat import set
 from genshi.builder import tag
 
 def linkify_ids(env, req, ids):
@@ -15,3 +15,12 @@ def linkify_ids(env, req, ids):
     if data:
         del data[-1] # Remove the last comma if needed
     return tag.span(*data)
+
+def diff_lists(a, b):
+    """Return two sets containing the numbers added and removed between the
+    two lists.
+    """
+    a = set([int(n) for n in a])
+    b = set([int(n) for n in b])
+    return a - b, b - a
+
