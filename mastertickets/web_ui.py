@@ -65,14 +65,21 @@ class MasterTicketsModule(Component):
                     continue
                 for field, field_data in change['fields'].iteritems():
                     if field in self.fields:
+                        new = set()
+                        old = set()
+
                         if field_data['new'].strip():
-                            new = set([int(n) for n in field_data['new'].split(',')])
-                        else:
-                            new = set()
+                            try:
+                                new = set([int(n) for n in field_data['new'].split(',')])
+                            except ValueError, e:
+                                pass #we ignore unparsable fields
+
                         if field_data['old'].strip():
-                            old = set([int(n) for n in field_data['old'].split(',')])
-                        else:
-                            old = set()
+                            try:
+                                old = set([int(n) for n in field_data['old'].split(',')])
+                            except ValueError, e:
+                                pass #we ignore unparsable fields
+
                         add = new - old
                         sub = old - new
                         elms = tag()
