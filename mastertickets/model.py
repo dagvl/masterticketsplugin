@@ -75,6 +75,10 @@ class TicketLinks(object):
                            
                     cursor.execute('UPDATE ticket_custom SET value=%s WHERE ticket=%s AND name=%s',
                                    (new_value, n, field))
+
+                    # refresh the changetime to prevent concurrent edits
+                    cursor.execute('UPDATE ticket SET changetime=%s WHERE id=%s', (when_ts,n))
+
                     if not cursor.rowcount:
                         cursor.execute('INSERT INTO ticket_custom (ticket, name, value) VALUES (%s, %s, %s)',
                                        (n, field, new_value))
