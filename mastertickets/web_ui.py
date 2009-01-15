@@ -114,7 +114,7 @@ class MasterTicketsModule(Component):
         if req.args.get('action') == 'resolve':
             links = TicketLinks(self.env, ticket)
             for i in links.blocked_by:
-                if Ticket(self.env, i)['status'] != 'closed':
+                if not Ticket(self.env, i)['status'] in ['closed', 'resolved']:
                     yield None, 'Ticket #%s is blocking this ticket'%i
 
     # ITemplateProvider methods
