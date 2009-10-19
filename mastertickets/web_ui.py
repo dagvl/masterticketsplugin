@@ -3,7 +3,7 @@ import subprocess
 from pkg_resources import resource_filename
 from genshi.core import Markup, START, END, TEXT
 from genshi.builder import tag
-from genshi.filters.transform import Transformer
+from genshi.filters.transform import StreamBuffer, Transformer
 
 from trac.core import *
 from trac.web.api import IRequestHandler, IRequestFilter, ITemplateStreamFilter
@@ -32,7 +32,11 @@ class MasterTicketsModule(Component):
     use_gs = BoolOption('mastertickets', 'use_gs', default=False,
                         doc='If enabled, use ghostscript to produce nicer output.')
     
-    FIELD_XPATH = 'div[@id="ticket"]/table[@class="properties"]/td[@headers="h_%s"]/text()'
+    FIELD_XPATHS = {
+        'query': 'table[@class="listing tickets"]/tbody/td[@class="%s"]/text()',
+        'ticket_id': 'table[@class="listing tickets"]/tbody/td[@class="id"]/a/text()',
+        'ticket': 'div[@id="ticket"]/table[@class="properties"]/td[@headers="h_%s"]/text()',
+    }
     fields = set(['blocking', 'blockedby'])
     
     # IRequestFilter methods
@@ -40,70 +44,116 @@ class MasterTicketsModule(Component):
         return handler
         
     def post_process_request(self, req, template, data, content_type):
-        if req.path_info.startswith('/ticket/'):
-            tkt = data['ticket']
-            links = TicketLinks(self.env, tkt)
-            
-            for i in links.blocked_by:
-                if Ticket(self.env, i)['status'] != 'closed':
-                    add_script(req, 'mastertickets/disable_resolve.js')
-                    break
+        if data is not None:
+            if req.path_info.startswith('/query'):
+                tkts = data['tickets']
+            elif req.path_info.startswith('/ticket'):
+                tkts = [data['ticket']]
+            else:
+                tkts = []
 
-            data['mastertickets'] = {
-                'field_values': {
+            if tkts:
+                add_stylesheet(req, 'mastertickets/ticket.css')
+            #self.log.debug("MasterTickets ticket list: %s", tkts)
+            #self.log.debug("MasterTickets pre-mod data: %s", data)
+            data['mastertickets'] = {}
+
+            for tkt in tkts:
+                #tkt = data['ticket']
+                if not isinstance(tkt, Ticket):
+                    try:
+                        tkt = Ticket(self.env, tkt)
+                    except TypeError:
+                        tkt = Ticket(self.env, tkt['id'])
+                #self.log.debug("MasterTickets Ticket: %s", tkt)
+                links = TicketLinks(self.env, tkt)
+            
+                #FIXME: Not sure how the following is affected by the new
+                #       query screen functionality
+                for i in links.blocked_by:
+                    if Ticket(self.env, i)['status'] != 'closed':
+                        add_script(req, 'mastertickets/disable_resolve.js')
+                        break
+
+                #Prepending # to the ticket id to ease lookup via xpath later
+                data['mastertickets']['#%s' % tkt.id] = {
                     'blocking': linkify_ids(self.env, req, links.blocking),
                     'blockedby': linkify_ids(self.env, req, links.blocked_by),
-                },
-            }
+                }
             
-            # Add link to depgraph if needed
-            if links:
-                add_ctxtnav(req, 'Depgraph', req.href.depgraph(tkt.id))
+                # Add link to depgraph if needed
+                # Suppressed on query screen, as there could be many tickets
+                if links and not req.path_info.startswith('/query'):
+                    add_ctxtnav(req, 'Depgraph', req.href.depgraph(tkt.id))
             
-            for change in data.get('changes', {}):
-                if not change.has_key('fields'):
-                    continue
-                for field, field_data in change['fields'].iteritems():
-                    if field in self.fields:
-                        new = set()
-                        old = set()
+                for change in data.get('changes', {}):
+                    if not change.has_key('fields'):
+                        continue
+                    for field, field_data in change['fields'].iteritems():
+                        if field in self.fields:
+                            new = set()
+                            old = set()
 
-                        if field_data['new'].strip():
-                            try:
-                                new = set([int(n) for n in field_data['new'].split(',')])
-                            except ValueError, e:
-                                pass #we ignore unparsable fields
+                            if field_data['new'].strip():
+                                try:
+                                    new = set([int(n) for n in field_data['new'].split(',')])
+                                except ValueError, e:
+                                    pass #we ignore unparsable fields
 
-                        if field_data['old'].strip():
-                            try:
-                                old = set([int(n) for n in field_data['old'].split(',')])
-                            except ValueError, e:
-                                pass #we ignore unparsable fields
+                            if field_data['old'].strip():
+                                try:
+                                    old = set([int(n) for n in field_data['old'].split(',')])
+                                except ValueError, e:
+                                    pass #we ignore unparsable fields
 
-                        add = new - old
-                        sub = old - new
-                        elms = tag()
-                        if add:
-                            elms.append(
-                                tag.em(u', '.join([unicode(n) for n in sorted(add)]))
-                            )
-                            elms.append(u' added')
-                        if add and sub:
-                            elms.append(u'; ')
-                        if sub:
-                            elms.append(
-                                tag.em(u', '.join([unicode(n) for n in sorted(sub)]))
-                            )
-                            elms.append(u' removed')
-                        field_data['rendered'] = elms
+                            add = new - old
+                            sub = old - new
+                            elms = tag()
+                            if add:
+                                elms.append(
+                                    tag.em(u', '.join([unicode(n) for n in sorted(add)]))
+                                )
+                                elms.append(u' added')
+                            if add and sub:
+                                elms.append(u'; ')
+                            if sub:
+                                elms.append(
+                                    tag.em(u', '.join([unicode(n) for n in sorted(sub)]))
+                                )
+                                elms.append(u' removed')
+                            field_data['rendered'] = elms
             
         return template, data, content_type
         
     # ITemplateStreamFilter methods
     def filter_stream(self, req, method, filename, stream, data):
         if 'mastertickets' in data:
-            for field, value in data['mastertickets']['field_values'].iteritems():
-                stream |= Transformer(self.FIELD_XPATH % field).replace(value)
+            if req.path_info.startswith('/query'):
+                #Implementation cribbed from:
+                #http://genshi.edgewall.org/wiki/ApiDocs/genshi.filters.transform#genshi.filters.transform:Transformer:copy
+                id_xpath = self.FIELD_XPATHS['ticket_id']
+                #The out-of-scope data must be passed in as optional parameter
+                #global didn't seem to work
+                def replace_text(ticket_id, field, data=data['mastertickets']):
+                    if ticket_id in data:
+                        return data[ticket_id][field]
+                    else:
+                        #Shouldn't ever happen
+                        return 'There was an error retrieving %s tickets' % field
+                template = dict([(fld, {'buff': StreamBuffer(),
+                                        'xpath': self.FIELD_XPATHS['query'] % fld}) \
+                                    for fld in self.fields])
+                for fld_name, fld_data in template.iteritems():
+                    fld_buff, fld_xpath = fld_data['buff'], fld_data['xpath']
+                    func = lambda buff=fld_buff, fld=fld_name: replace_text(str(buff), fld)
+                    stream |= Transformer(id_xpath).copy(fld_buff).end().select(fld_xpath).replace(func)
+                
+            elif req.path_info.startswith('/ticket'):
+                xpath = self.FIELD_XPATHS['ticket']
+                #Should only ever be one tkt_id           
+                for tkt_id, field_values in data['mastertickets'].iteritems():
+                    for field, value in field_values.iteritems():
+                        stream |= Transformer(xpath % field).replace(value)
         return stream
         
     # ITicketManipulator methods

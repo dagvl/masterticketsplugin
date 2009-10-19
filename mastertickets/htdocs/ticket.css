@@ -1,3 +1,4 @@
 input#blockedby { display: none; }
 label[for=blockedby] { display: none; }
 img.blockedby_icon { width: 1em; }
+a.mt-closed:link, a.mt-closed:visited, span.mt-closed { text-decoration: line-through }

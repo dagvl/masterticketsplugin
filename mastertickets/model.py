@@ -13,17 +13,20 @@ class TicketLinks(object):
     def __init__(self, env, tkt, db=None):
         self.env = env
         if not isinstance(tkt, Ticket):
-            tkt = Ticket(self.env, tkt)
+            try:
+                tkt = Ticket(self.env, tkt)
+            except TypeError:
+                tkt = Ticket(self.env, tkt['id'])
         self.tkt = tkt
         
         db = db or self.env.get_db_cnx()
         cursor = db.cursor()
         
-        cursor.execute('SELECT dest FROM mastertickets WHERE source=%s ORDER BY dest', (self.tkt.id,))
+        cursor.execute('SELECT dest FROM mastertickets WHERE source=%s ORDER BY dest', (str(self.tkt.id),))
         self.blocking = set([num for num, in cursor])
         self._old_blocking = copy.copy(self.blocking)
         
-        cursor.execute('SELECT source FROM mastertickets WHERE dest=%s ORDER BY source', (self.tkt.id,))
+        cursor.execute('SELECT source FROM mastertickets WHERE dest=%s ORDER BY source', (str(self.tkt.id),))
         self.blocked_by = set([num for num, in cursor])
         self._old_blocked_by = copy.copy(self.blocked_by)
         
@@ -50,38 +53,38 @@ class TicketLinks(object):
                 update_field = None
                 if n in new_ids and n not in old_ids:
                     # New ticket added
-                    cursor.execute('INSERT INTO mastertickets (%s, %s) VALUES (%%s, %%s)'%sourcedest, (self.tkt.id, n))
+                    cursor.execute('INSERT INTO mastertickets (%s, %s) VALUES (%%s, %%s)'%sourcedest, (str(self.tkt.id), str(n)))
                     update_field = lambda lst: lst.append(str(self.tkt.id))
                 elif n not in new_ids and n in old_ids:
                     # Old ticket removed
-                    cursor.execute('DELETE FROM mastertickets WHERE %s=%%s AND %s=%%s'%sourcedest, (self.tkt.id, n))
+                    cursor.execute('DELETE FROM mastertickets WHERE %s=%%s AND %s=%%s'%sourcedest, (str(self.tkt.id), str(n)))
                     update_field = lambda lst: lst.remove(str(self.tkt.id))
                 
                 if update_field is not None:
                     cursor.execute('SELECT value FROM ticket_custom WHERE ticket=%s AND name=%s',
-                                   (n, field))
+                                   (str(n), str(field)))
                     old_value = (cursor.fetchone() or ('',))[0]
                     new_value = [x.strip() for x in old_value.split(',') if x.strip()]
                     update_field(new_value)
                     new_value = ', '.join(sorted(new_value, key=lambda x: int(x)))
             
                     cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)', 
-                                   (n, when_ts, author, field, old_value, new_value))
+                                   (n, when_ts, str(author), str(field), str(old_value), str(new_value)))
                                    
                     if comment:
                         cursor.execute('INSERT INTO ticket_change (ticket, time, author, field, oldvalue, newvalue) VALUES (%s, %s, %s, %s, %s, %s)', 
-                                       (n, when_ts, author, 'comment', '', '(In #%s) %s'%(self.tkt.id, comment)))
+                                       (n, when_ts, str(author), 'comment', '', '(In #%s) %s'%(self.tkt.id, comment)))
                                    
                            
                     cursor.execute('UPDATE ticket_custom SET value=%s WHERE ticket=%s AND name=%s',
-                                   (new_value, n, field))
+                                   (str(new_value), n, str(field)))
 
                     # refresh the changetime to prevent concurrent edits
                     cursor.execute('UPDATE ticket SET changetime=%s WHERE id=%s', (when_ts,n))
 
                     if not cursor.rowcount:
                         cursor.execute('INSERT INTO ticket_custom (ticket, name, value) VALUES (%s, %s, %s)',
-                                       (n, field, new_value))
+                                       (n, str(field), str(new_value)))
         
         # cursor.execute('DELETE FROM mastertickets WHERE source=%s OR dest=%s', (self.tkt.id, self.tkt.id))
         # data = []
